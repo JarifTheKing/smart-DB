@@ -1,16 +1,19 @@
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 3000;
+console.log(process.env);
 
 // MiddleWare
 app.use(cors());
 app.use(express.json());
 
 // Mongo Uri
+
 const uri =
-  "mongodb+srv://smartDBuser:ObUPGa0QwGkFpyML@cluster0.mkuqnbp.mongodb.net/?appName=Cluster0";
+  `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.mkuqnbp.mongodb.net/?appName=Cluster0`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -26,10 +29,67 @@ async function run() {
 
     const db = client.db("smart_db");
     const productsCollection = db.collection("products");
+    const bidsCollection = db.collection("bids");
+    const usersCollection = db.collection("users");
+
+    // ----------------000-----------------------
+
+    // Users API
+
+    // GET all:-
+    app.get("/users", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.email = email;
+      }
+
+      const cursor = usersCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // POST:-
+    app.post("/users", async (req, res) => {
+      const newUser = req.body;
+
+      const email = req.body.email;
+      const query = { email: email };
+      const existingUser = await usersCollection.findOne(query);
+
+      if (existingUser) {
+        res.send({ message: "User already Exist" });
+      } else {
+        const result = await usersCollection.insertOne(newUser);
+        res.send(result);
+      }
+    });
+
+    // ------------------000---------------------
+
+    // products API
 
     // GET all:-
     app.get("/products", async (req, res) => {
-      const cursor = productsCollection.find();
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.email = email;
+      }
+
+      const cursor = productsCollection.find(query).sort({ price_min: 1 });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // GET - Latest-Products
+    app.get("/latest-products", async (req, res) => {
+      const cursor = productsCollection
+        .find()
+        .sort({
+          created_at: -1,
+        })
+        .limit(6);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -67,6 +127,60 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await productsCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // ---------------------  000 -----------------------
+
+    // Bids - API
+
+    // GET all:-
+    app.get("/bids", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.buyer_email = email;
+      }
+
+      const cursor = bidsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // GET by Email:-
+    app.get("/bids", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.buyer_email = email;
+      }
+
+      const cursor = bidsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // Bids get
+    app.get("/products/bids/:productID", async (req, res) => {
+      const productID = req.params.productID;
+      const query = { product: productID };
+      const cursor = bidsCollection.find(query).sort({ bid_price: 1 }).limit(4);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // POST:-
+    app.post("/bids", async (req, res) => {
+      const newProduct = req.body;
+      const result = await bidsCollection.insertOne(newProduct);
+      res.send(result);
+    });
+
+    // Delete
+    app.delete("/bids/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bidsCollection.deleteOne(query);
       res.send(result);
     });
 
